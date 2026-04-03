@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soup Club - Recipe Exchange</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍲</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-text-primary: #1a1a1a;
+      --color-text-secondary: #666;
+      --color-text-tertiary: #999;
+      --color-background-primary: #fff;
+      --color-background-secondary: #f7f5f2;
+      --color-border-tertiary: #e0dcd7;
+      --border-radius-md: 10px;
+      --border-radius-lg: 14px;
+    }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #faf8f5;
+      color: var(--color-text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+    @keyframes soupBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const SOUP_EMOJIS = ["\u{1F35C}", "\u{1F963}", "\u{1F372}", "\u{1FAD5}", "\u{1F958}"];
+
+    const soupIllustrations = {
+      bowl: (color = "#E24B4A") => (
+        <svg viewBox="0 0 120 100" width="120" height="100">
+          <ellipse cx="60" cy="65" rx="50" ry="30" fill={color} opacity="0.15" />
+          <path d="M15 50 Q15 80 60 80 Q105 80 105 50 Z" fill={color} />
+          <ellipse cx="60" cy="50" rx="45" ry="18" fill={color} opacity="0.85" />
+          <path d="M35 42 Q38 35 42 42" stroke="#fff" strokeWidth="2" fill="none" opacity="0.6" />
+          <path d="M55 38 Q58 30 62 38" stroke="#fff" strokeWidth="2" fill="none" opacity="0.6" />
+          <path d="M75 42 Q78 35 82 42" stroke="#fff" strokeWidth="2" fill="none" opacity="0.6" />
+        </svg>
+      ),
+      steam: () => (
+        <svg viewBox="0 0 60 80" width="40" height="60">
+          <path d="M15 70 Q20 50 15 40 Q10 30 18 15" stroke="#D85A30" strokeWidth="3" fill="none" opacity="0.3" strokeLinecap="round">
+            <animate attributeName="d" dur="3s" repeatCount="indefinite" values="M15 70 Q20 50 15 40 Q10 30 18 15;M15 70 Q10 50 15 40 Q20 30 12 15;M15 70 Q20 50 15 40 Q10 30 18 15" />
+          </path>
+          <path d="M30 75 Q35 55 30 45 Q25 35 33 20" stroke="#D85A30" strokeWidth="3" fill="none" opacity="0.2" strokeLinecap="round">
+            <animate attributeName="d" dur="2.5s" repeatCount="indefinite" values="M30 75 Q35 55 30 45 Q25 35 33 20;M30 75 Q25 55 30 45 Q35 35 27 20;M30 75 Q35 55 30 45 Q25 35 33 20" />
+          </path>
+          <path d="M45 70 Q50 50 45 40 Q40 30 48 15" stroke="#D85A30" strokeWidth="3" fill="none" opacity="0.25" strokeLinecap="round">
+            <animate attributeName="d" dur="3.5s" repeatCount="indefinite" values="M45 70 Q50 50 45 40 Q40 30 48 15;M45 70 Q40 50 45 40 Q50 30 42 15;M45 70 Q50 50 45 40 Q40 30 48 15" />
+          </path>
+        </svg>
+      ),
+    };
+
+    function BubbleDecor() {
+      return (
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+          {[...Array(8)].map((_, i) => (
+            <div key={i} style={{
+              position: "absolute",
+              width: `${12 + i * 6}px`,
+              height: `${12 + i * 6}px`,
+              borderRadius: "50%",
+              border: "1.5px solid",
+              borderColor: i % 2 === 0 ? "rgba(216,90,48,0.12)" : "rgba(29,158,117,0.1)",
+              left: `${(i * 13 + 5) % 90}%`,
+              top: `${(i * 17 + 10) % 85}%`,
+            }} />
+          ))}
+        </div>
+      );
+    }
+
+    function WelcomePage({ onNavigate }) {
+      return (
+        <div style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", padding: "2rem 1rem" }}>
+          <BubbleDecor />
+          <div style={{ position: "relative", zIndex: 1, textAlign: "center", maxWidth: 520 }}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.5rem" }}>
+              {soupIllustrations.steam()}
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
+              {soupIllustrations.bowl("#D85A30")}
+            </div>
+            <h1 style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: "clamp(2rem, 6vw, 3rem)",
+              fontWeight: 700,
+              color: "var(--color-text-primary)",
+              margin: "0 0 0.25rem",
+              letterSpacing: "-0.5px",
+            }}>
+              soup club
+            </h1>
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "1.1rem",
+              color: "#D85A30",
+              fontWeight: 500,
+              margin: "0 0 1.5rem",
+              letterSpacing: "3px",
+              textTransform: "uppercase",
+            }}>
+              recipe exchange
+            </p>
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "1rem",
+              color: "var(--color-text-secondary)",
+              lineHeight: 1.7,
+              margin: "0 0 2.5rem",
+              padding: "0 1rem",
+            }}>
+              Welcome to our cozy corner of the internet! Share your favorite soups, discover new recipes from fellow members, and keep our monthly soup swaps delicious.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
+              <button
+                onClick={() => onNavigate("add")}
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  padding: "14px 36px",
+                  border: "none",
+                  borderRadius: "var(--border-radius-lg)",
+                  background: "#D85A30",
+                  color: "#fff",
+                  cursor: "pointer",
+                  width: "280px",
+                  transition: "all 0.2s",
+                  letterSpacing: "0.5px",
+                }}
+                onMouseEnter={e => { e.target.style.background = "#993C1D"; e.target.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.target.style.background = "#D85A30"; e.target.style.transform = "translateY(0)"; }}
+              >
+                {"\u{1F944}"} add a recipe
+              </button>
+              <button
+                onClick={() => onNavigate("browse")}
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  padding: "14px 36px",
+                  border: "2px solid #1D9E75",
+                  borderRadius: "var(--border-radius-lg)",
+                  background: "transparent",
+                  color: "#1D9E75",
+                  cursor: "pointer",
+                  width: "280px",
+                  transition: "all 0.2s",
+                  letterSpacing: "0.5px",
+                }}
+                onMouseEnter={e => { e.target.style.background = "#E1F5EE"; e.target.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.target.style.background = "transparent"; e.target.style.transform = "translateY(0)"; }}
+              >
+                {"\u{1F372}"} browse recipes
+              </button>
+            </div>
+            <div style={{ marginTop: "3rem", display: "flex", justifyContent: "center", gap: "0.75rem", fontSize: "1.5rem" }}>
+              {SOUP_EMOJIS.map((e, i) => (
+                <span key={i} style={{ animation: `soupBounce 2s ease-in-out ${i * 0.2}s infinite` }}>{e}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function AddRecipePage({ onNavigate, onSave }) {
+      const [form, setForm] = useState({ name: "", chef: "", ingredients: "", instructions: "", imageUrl: "" });
+      const [saved, setSaved] = useState(false);
+      const [imagePreview, setImagePreview] = useState(null);
+
+      const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target.result;
+          setImagePreview(dataUrl);
+          setForm(f => ({ ...f, imageUrl: dataUrl }));
+        };
+        reader.readAsDataURL(file);
+      };
+
+      const handleSubmit = () => {
+        if (!form.name.trim() || !form.chef.trim()) return;
+        onSave({
+          ...form,
+          id: Date.now().toString(),
+          createdAt: new Date().toISOString(),
+        });
+        setSaved(true);
+        setTimeout(() => {
+          setSaved(false);
+          setForm({ name: "", chef: "", ingredients: "", instructions: "", imageUrl: "" });
+          setImagePreview(null);
+        }, 2500);
+      };
+
+      const inputStyle = {
+        fontFamily: "'DM Sans', sans-serif",
+        fontSize: "0.95rem",
+        padding: "12px 16px",
+        border: "1.5px solid var(--color-border-tertiary)",
+        borderRadius: "var(--border-radius-md)",
+        background: "var(--color-background-primary)",
+        color: "var(--color-text-primary)",
+        width: "100%",
+        boxSizing: "border-box",
+        transition: "border-color 0.2s",
+        outline: "none",
+      };
+
+      const labelStyle = {
+        fontFamily: "'DM Sans', sans-serif",
+        fontSize: "0.85rem",
+        fontWeight: 600,
+        color: "#D85A30",
+        marginBottom: "6px",
+        display: "block",
+        letterSpacing: "0.5px",
+        textTransform: "uppercase",
+      };
+
+      return (
+        <div style={{ position: "relative", minHeight: "100vh", padding: "1.5rem 1rem" }}>
+          <BubbleDecor />
+          <div style={{ position: "relative", zIndex: 1, maxWidth: 500, margin: "0 auto" }}>
+            <button
+              onClick={() => onNavigate("home")}
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "0.9rem",
+                background: "none",
+                border: "none",
+                color: "#1D9E75",
+                cursor: "pointer",
+                padding: "0",
+                marginBottom: "1.5rem",
+                fontWeight: 500,
+              }}
+            >
+              {"\u2190"} back to home
+            </button>
+
+            <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: "2.5rem", marginBottom: "0.25rem" }}>{"\u{1F944}"}</div>
+              <h2 style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                fontSize: "1.75rem",
+                fontWeight: 700,
+                color: "var(--color-text-primary)",
+                margin: 0,
+              }}>
+                add your soup
+              </h2>
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "0.9rem",
+                color: "var(--color-text-secondary)",
+                margin: "0.5rem 0 0",
+              }}>
+                Share your masterpiece with the club!
+              </p>
+            </div>
+
+            {saved && (
+              <div style={{
+                background: "#E1F5EE",
+                border: "1.5px solid #1D9E75",
+                borderRadius: "var(--border-radius-md)",
+                padding: "16px",
+                textAlign: "center",
+                marginBottom: "1.5rem",
+                fontFamily: "'DM Sans', sans-serif",
+                color: "#085041",
+                fontWeight: 500,
+                fontSize: "0.95rem",
+                animation: "fadeIn 0.3s ease",
+              }}>
+                {"\u{1F389}"} Recipe saved! Your soup club thanks you!
+              </div>
+            )}
+
+            <div style={{
+              background: "var(--color-background-primary)",
+              border: "1.5px solid var(--color-border-tertiary)",
+              borderRadius: "var(--border-radius-lg)",
+              padding: "1.5rem",
+            }}>
+              <div style={{ marginBottom: "1.25rem" }}>
+                <label style={labelStyle}>soup name *</label>
+                <input
+                  style={inputStyle}
+                  placeholder="e.g. Grandma's Tomato Bisque"
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  onFocus={e => e.target.style.borderColor = "#D85A30"}
+                  onBlur={e => e.target.style.borderColor = "var(--color-border-tertiary)"}
+                />
+              </div>
+
+              <div style={{ marginBottom: "1.25rem" }}>
+                <label style={labelStyle}>made by *</label>
+                <input
+                  style={inputStyle}
+                  placeholder="Your name"
+                  value={form.chef}
+                  onChange={e => setForm(f => ({ ...f, chef: e.target.value }))}
+                  onFocus={e => e.target.style.borderColor = "#D85A30"}
+                  onBlur={e => e.target.style.borderColor = "var(--color-border-tertiary)"}
+                />
+              </div>
+
+              <div style={{ marginBottom: "1.25rem" }}>
+                <label style={labelStyle}>ingredients</label>
+                <textarea
+                  style={{ ...inputStyle, minHeight: "100px", resize: "vertical", lineHeight: 1.6 }}
+                  placeholder={"1 can crushed tomatoes\n2 cloves garlic\n1 cup heavy cream\n..."}
+                  value={form.ingredients}
+                  onChange={e => setForm(f => ({ ...f, ingredients: e.target.value }))}
+                  onFocus={e => e.target.style.borderColor = "#D85A30"}
+                  onBlur={e => e.target.style.borderColor = "var(--color-border-tertiary)"}
+                />
+              </div>
+
+              <div style={{ marginBottom: "1.25rem" }}>
+                <label style={labelStyle}>instructions</label>
+                <textarea
+                  style={{ ...inputStyle, minHeight: "120px", resize: "vertical", lineHeight: 1.6 }}
+                  placeholder="How do you make this magical soup?"
+                  value={form.instructions}
+                  onChange={e => setForm(f => ({ ...f, instructions: e.target.value }))}
+                  onFocus={e => e.target.style.borderColor = "#D85A30"}
+                  onBlur={e => e.target.style.borderColor = "var(--color-border-tertiary)"}
+                />
+              </div>
+
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label style={labelStyle}>photo (optional)</label>
+                <div style={{
+                  border: "2px dashed var(--color-border-tertiary)",
+                  borderRadius: "var(--border-radius-md)",
+                  padding: "1.5rem",
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "border-color 0.2s",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+                  onClick={() => document.getElementById("photo-upload").click()}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = "#D85A30"}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = "var(--color-border-tertiary)"}
+                >
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Soup preview" style={{ maxWidth: "100%", maxHeight: "200px", borderRadius: "8px" }} />
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{"\u{1F4F8}"}</div>
+                      <p style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: "0.85rem",
+                        color: "var(--color-text-secondary)",
+                        margin: 0,
+                      }}>
+                        Click to upload a photo of your soup
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    id="photo-upload"
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={handleImageUpload}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleSubmit}
+                disabled={!form.name.trim() || !form.chef.trim()}
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  padding: "14px",
+                  border: "none",
+                  borderRadius: "var(--border-radius-md)",
+                  background: form.name.trim() && form.chef.trim() ? "#D85A30" : "#ccc",
+                  color: "#fff",
+                  cursor: form.name.trim() && form.chef.trim() ? "pointer" : "not-allowed",
+                  width: "100%",
+                  transition: "all 0.2s",
+                  letterSpacing: "0.5px",
+                }}
+                onMouseEnter={e => { if (form.name.trim() && form.chef.trim()) e.target.style.background = "#993C1D"; }}
+                onMouseLeave={e => { if (form.name.trim() && form.chef.trim()) e.target.style.background = "#D85A30"; }}
+              >
+                {"\u{1F372}"} save recipe
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function RecipeCard({ recipe, onClick }) {
+      const colors = ["#D85A30", "#1D9E75", "#534AB7", "#D4537E", "#BA7517"];
+      const colorIndex = recipe.name.length % colors.length;
+      const accentColor = colors[colorIndex];
+
+      return (
+        <div
+          onClick={onClick}
+          style={{
+            background: "var(--color-background-primary)",
+            border: "1.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-lg)",
+            overflow: "hidden",
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--color-border-tertiary)"; e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          {recipe.imageUrl ? (
+            <div style={{ height: "140px", overflow: "hidden" }}>
+              <img src={recipe.imageUrl} alt={recipe.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+          ) : (
+            <div style={{
+              height: "100px",
+              background: `${accentColor}15`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "2.5rem",
+            }}>
+              {SOUP_EMOJIS[colorIndex]}
+            </div>
+          )}
+          <div style={{ padding: "1rem" }}>
+            <h3 style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: "1.05rem",
+              fontWeight: 700,
+              color: "var(--color-text-primary)",
+              margin: "0 0 0.35rem",
+              lineHeight: 1.3,
+            }}>
+              {recipe.name}
+            </h3>
+            <div style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "0.8rem",
+              color: accentColor,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}>
+              <span>by {recipe.chef}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function RecipeDetail({ recipe, onBack }) {
+      const colors = ["#D85A30", "#1D9E75", "#534AB7", "#D4537E", "#BA7517"];
+      const accentColor = colors[recipe.name.length % colors.length];
+
+      return (
+        <div style={{ animation: "fadeIn 0.3s ease" }}>
+          <button
+            onClick={onBack}
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "0.9rem",
+              background: "none",
+              border: "none",
+              color: "#1D9E75",
+              cursor: "pointer",
+              padding: "0",
+              marginBottom: "1.25rem",
+              fontWeight: 500,
+            }}
+          >
+            {"\u2190"} back to recipes
+          </button>
+
+          <div style={{
+            background: "var(--color-background-primary)",
+            border: "1.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-lg)",
+            overflow: "hidden",
+          }}>
+            {recipe.imageUrl ? (
+              <div style={{ height: "220px", overflow: "hidden" }}>
+                <img src={recipe.imageUrl} alt={recipe.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+            ) : (
+              <div style={{
+                height: "120px",
+                background: `${accentColor}15`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "3.5rem",
+              }}>
+                {SOUP_EMOJIS[recipe.name.length % SOUP_EMOJIS.length]}
+              </div>
+            )}
+            <div style={{ padding: "1.5rem" }}>
+              <h2 style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                fontSize: "1.5rem",
+                fontWeight: 700,
+                color: "var(--color-text-primary)",
+                margin: "0 0 0.25rem",
+              }}>
+                {recipe.name}
+              </h2>
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "0.85rem",
+                color: accentColor,
+                fontWeight: 600,
+                margin: "0 0 1.25rem",
+              }}>
+                Made by {recipe.chef}
+              </p>
+
+              {recipe.ingredients && (
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <h4 style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    color: "#D85A30",
+                    letterSpacing: "0.5px",
+                    textTransform: "uppercase",
+                    margin: "0 0 0.5rem",
+                  }}>
+                    Ingredients
+                  </h4>
+                  <div style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "0.9rem",
+                    color: "var(--color-text-primary)",
+                    lineHeight: 1.8,
+                    whiteSpace: "pre-line",
+                    padding: "12px 16px",
+                    background: "var(--color-background-secondary)",
+                    borderRadius: "var(--border-radius-md)",
+                  }}>
+                    {recipe.ingredients}
+                  </div>
+                </div>
+              )}
+
+              {recipe.instructions && (
+                <div>
+                  <h4 style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    color: "#D85A30",
+                    letterSpacing: "0.5px",
+                    textTransform: "uppercase",
+                    margin: "0 0 0.5rem",
+                  }}>
+                    Instructions
+                  </h4>
+                  <div style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "0.9rem",
+                    color: "var(--color-text-primary)",
+                    lineHeight: 1.8,
+                    whiteSpace: "pre-line",
+                    padding: "12px 16px",
+                    background: "var(--color-background-secondary)",
+                    borderRadius: "var(--border-radius-md)",
+                  }}>
+                    {recipe.instructions}
+                  </div>
+                </div>
+              )}
+
+              {recipe.createdAt && (
+                <p style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "0.75rem",
+                  color: "var(--color-text-tertiary)",
+                  marginTop: "1.25rem",
+                  marginBottom: 0,
+                }}>
+                  Added {new Date(recipe.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function BrowsePage({ onNavigate, recipes }) {
+      const [search, setSearch] = useState("");
+      const [selected, setSelected] = useState(null);
+
+      const filtered = recipes.filter(r =>
+        r.name.toLowerCase().includes(search.toLowerCase()) ||
+        r.chef.toLowerCase().includes(search.toLowerCase()) ||
+        (r.ingredients && r.ingredients.toLowerCase().includes(search.toLowerCase()))
+      );
+
+      if (selected) {
+        return (
+          <div style={{ position: "relative", minHeight: "100vh", padding: "1.5rem 1rem" }}>
+            <BubbleDecor />
+            <div style={{ position: "relative", zIndex: 1, maxWidth: 550, margin: "0 auto" }}>
+              <RecipeDetail recipe={selected} onBack={() => setSelected(null)} />
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ position: "relative", minHeight: "100vh", padding: "1.5rem 1rem" }}>
+          <BubbleDecor />
+          <div style={{ position: "relative", zIndex: 1, maxWidth: 600, margin: "0 auto" }}>
+            <button
+              onClick={() => onNavigate("home")}
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "0.9rem",
+                background: "none",
+                border: "none",
+                color: "#1D9E75",
+                cursor: "pointer",
+                padding: "0",
+                marginBottom: "1.5rem",
+                fontWeight: 500,
+              }}
+            >
+              {"\u2190"} back to home
+            </button>
+
+            <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: "2.5rem", marginBottom: "0.25rem" }}>{"\u{1F372}"}</div>
+              <h2 style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                fontSize: "1.75rem",
+                fontWeight: 700,
+                color: "var(--color-text-primary)",
+                margin: 0,
+              }}>
+                recipe collection
+              </h2>
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "0.9rem",
+                color: "var(--color-text-secondary)",
+                margin: "0.5rem 0 0",
+              }}>
+                {recipes.length} {recipes.length === 1 ? "soup" : "soups"} and counting!
+              </p>
+            </div>
+
+            <div style={{ position: "relative", marginBottom: "1.5rem" }}>
+              <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "1.1rem" }}>{"\u{1F50D}"}</span>
+              <input
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "0.95rem",
+                  padding: "12px 16px 12px 42px",
+                  border: "1.5px solid var(--color-border-tertiary)",
+                  borderRadius: "var(--border-radius-lg)",
+                  background: "var(--color-background-primary)",
+                  color: "var(--color-text-primary)",
+                  width: "100%",
+                  boxSizing: "border-box",
+                  outline: "none",
+                  transition: "border-color 0.2s",
+                }}
+                placeholder="Search by soup name, chef, or ingredient..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onFocus={e => e.target.style.borderColor = "#D85A30"}
+                onBlur={e => e.target.style.borderColor = "var(--color-border-tertiary)"}
+              />
+            </div>
+
+            {filtered.length === 0 ? (
+              <div style={{
+                textAlign: "center",
+                padding: "3rem 1rem",
+                fontFamily: "'DM Sans', sans-serif",
+              }}>
+                <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>{"\u{1F963}"}</div>
+                {recipes.length === 0 ? (
+                  <>
+                    <p style={{ fontSize: "1rem", color: "var(--color-text-secondary)", margin: "0 0 0.5rem" }}>
+                      No soups yet!
+                    </p>
+                    <p style={{ fontSize: "0.85rem", color: "var(--color-text-tertiary)", margin: 0 }}>
+                      Be the first to add a recipe.
+                    </p>
+                    <button
+                      onClick={() => onNavigate("add")}
+                      style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        marginTop: "1rem",
+                        fontSize: "0.9rem",
+                        fontWeight: 600,
+                        padding: "10px 24px",
+                        border: "none",
+                        borderRadius: "var(--border-radius-md)",
+                        background: "#D85A30",
+                        color: "#fff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {"\u{1F944}"} add first soup
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ fontSize: "1rem", color: "var(--color-text-secondary)", margin: 0 }}>
+                      No soups match "{search}"
+                    </p>
+                    <p style={{ fontSize: "0.85rem", color: "var(--color-text-tertiary)", margin: "0.5rem 0 0" }}>
+                      Try a different search!
+                    </p>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(min(200px, 100%), 1fr))",
+                gap: "1rem",
+              }}>
+                {filtered.map(r => (
+                  <RecipeCard key={r.id} recipe={r} onClick={() => setSelected(r)} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function SoupClub() {
+      const [page, setPage] = useState("home");
+      const [recipes, setRecipes] = useState([]);
+      const [loaded, setLoaded] = useState(false);
+
+      useEffect(() => {
+        try {
+          const stored = localStorage.getItem("soup-club-recipes");
+          if (stored) {
+            setRecipes(JSON.parse(stored));
+          }
+        } catch (e) {
+          // no recipes yet
+        }
+        setLoaded(true);
+      }, []);
+
+      const saveRecipe = useCallback((recipe) => {
+        const updated = [...recipes, recipe];
+        setRecipes(updated);
+        try {
+          localStorage.setItem("soup-club-recipes", JSON.stringify(updated));
+        } catch (e) {
+          console.error("Failed to save:", e);
+        }
+      }, [recipes]);
+
+      if (!loaded) {
+        return (
+          <div style={{
+            minHeight: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "'DM Sans', sans-serif",
+            color: "var(--color-text-secondary)",
+          }}>
+            <div style={{ fontSize: "3rem", marginBottom: "1rem", animation: "soupBounce 1.5s ease-in-out infinite" }}>{"\u{1F372}"}</div>
+            <p>Warming up the soup...</p>
+          </div>
+        );
+      }
+
+      return (
+        <div>
+          {page === "home" && <WelcomePage onNavigate={setPage} />}
+          {page === "add" && <AddRecipePage onNavigate={setPage} onSave={saveRecipe} />}
+          {page === "browse" && <BrowsePage onNavigate={setPage} recipes={recipes} />}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<SoupClub />);
+  </script>
+</body>
+</html>
