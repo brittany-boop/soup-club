@@ -42,6 +42,22 @@
   <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
 
+    const BLOB_URL = "https://jsonblob.com/api/jsonBlob/019d5593-8b62-72ae-8aef-ee8c5b5a6a7d";
+
+    async function fetchRecipes() {
+      const res = await fetch(BLOB_URL);
+      const data = await res.json();
+      return data.recipes || [];
+    }
+
+    async function saveRecipesToCloud(recipes) {
+      await fetch(BLOB_URL, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipes }),
+      });
+    }
+
     const SOUP_EMOJIS = ["\u{1F35C}", "\u{1F963}", "\u{1F372}", "\u{1FAD5}", "\u{1F958}"];
 
     const soupIllustrations = {
@@ -188,6 +204,7 @@
     function AddRecipePage({ onNavigate, onSave }) {
       const [form, setForm] = useState({ name: "", chef: "", ingredients: "", instructions: "", imageUrl: "" });
       const [saved, setSaved] = useState(false);
+      const [saving, setSaving] = useState(false);
       const [imagePreview, setImagePreview] = useState(null);
 
       const handleImageUpload = (e) => {
@@ -202,19 +219,25 @@
         reader.readAsDataURL(file);
       };
 
-      const handleSubmit = () => {
-        if (!form.name.trim() || !form.chef.trim()) return;
-        onSave({
-          ...form,
-          id: Date.now().toString(),
-          createdAt: new Date().toISOString(),
-        });
-        setSaved(true);
-        setTimeout(() => {
-          setSaved(false);
-          setForm({ name: "", chef: "", ingredients: "", instructions: "", imageUrl: "" });
-          setImagePreview(null);
-        }, 2500);
+      const handleSubmit = async () => {
+        if (!form.name.trim() || !form.chef.trim() || saving) return;
+        setSaving(true);
+        try {
+          await onSave({
+            ...form,
+            id: Date.now().toString(),
+            createdAt: new Date().toISOString(),
+          });
+          setSaved(true);
+          setTimeout(() => {
+            setSaved(false);
+            setForm({ name: "", chef: "", ingredients: "", instructions: "", imageUrl: "" });
+            setImagePreview(null);
+          }, 2500);
+        } catch (e) {
+          console.error("Failed to save:", e);
+        }
+        setSaving(false);
       };
 
       const inputStyle = {
@@ -399,7 +422,7 @@
 
               <button
                 onClick={handleSubmit}
-                disabled={!form.name.trim() || !form.chef.trim()}
+                disabled={!form.name.trim() || !form.chef.trim() || saving}
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "1rem",
@@ -407,17 +430,17 @@
                   padding: "14px",
                   border: "none",
                   borderRadius: "var(--border-radius-md)",
-                  background: form.name.trim() && form.chef.trim() ? "#D85A30" : "#ccc",
+                  background: form.name.trim() && form.chef.trim() && !saving ? "#D85A30" : "#ccc",
                   color: "#fff",
-                  cursor: form.name.trim() && form.chef.trim() ? "pointer" : "not-allowed",
+                  cursor: form.name.trim() && form.chef.trim() && !saving ? "pointer" : "not-allowed",
                   width: "100%",
                   transition: "all 0.2s",
                   letterSpacing: "0.5px",
                 }}
-                onMouseEnter={e => { if (form.name.trim() && form.chef.trim()) e.target.style.background = "#993C1D"; }}
-                onMouseLeave={e => { if (form.name.trim() && form.chef.trim()) e.target.style.background = "#D85A30"; }}
+                onMouseEnter={e => { if (form.name.trim() && form.chef.trim() && !saving) e.target.style.background = "#993C1D"; }}
+                onMouseLeave={e => { if (form.name.trim() && form.chef.trim() && !saving) e.target.style.background = "#D85A30"; }}
               >
-                {"\u{1F372}"} save recipe
+                {saving ? "\u{1F372} saving..." : "\u{1F372} save recipe"}
               </button>
             </div>
           </div>
@@ -778,26 +801,18 @@
       const [loaded, setLoaded] = useState(false);
 
       useEffect(() => {
-        try {
-          const stored = localStorage.getItem("soup-club-recipes");
-          if (stored) {
-            setRecipes(JSON.parse(stored));
-          }
-        } catch (e) {
-          // no recipes yet
-        }
-        setLoaded(true);
+        fetchRecipes()
+          .then(r => setRecipes(r))
+          .catch(() => {})
+          .finally(() => setLoaded(true));
       }, []);
 
-      const saveRecipe = useCallback((recipe) => {
-        const updated = [...recipes, recipe];
+      const saveRecipe = useCallback(async (recipe) => {
+        const current = await fetchRecipes();
+        const updated = [...current, recipe];
+        await saveRecipesToCloud(updated);
         setRecipes(updated);
-        try {
-          localStorage.setItem("soup-club-recipes", JSON.stringify(updated));
-        } catch (e) {
-          console.error("Failed to save:", e);
-        }
-      }, [recipes]);
+      }, []);
 
       if (!loaded) {
         return (
