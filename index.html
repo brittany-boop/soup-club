@@ -42,19 +42,18 @@
   <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
 
-    const BLOB_URL = "https://jsonblob.com/api/jsonBlob/019d5593-8b62-72ae-8aef-ee8c5b5a6a7d";
+    const API_URL = "https://soup-club-api.brittany-a68.workers.dev";
 
     async function fetchRecipes() {
-      const res = await fetch(BLOB_URL);
-      const data = await res.json();
-      return data.recipes || [];
+      const res = await fetch(API_URL);
+      return await res.json();
     }
 
-    async function saveRecipesToCloud(recipes) {
-      await fetch(BLOB_URL, {
-        method: "PUT",
+    async function saveRecipeToCloud(recipe) {
+      await fetch(API_URL, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipes }),
+        body: JSON.stringify(recipe),
       });
     }
 
@@ -808,10 +807,8 @@
       }, []);
 
       const saveRecipe = useCallback(async (recipe) => {
-        const current = await fetchRecipes();
-        const updated = [...current, recipe];
-        await saveRecipesToCloud(updated);
-        setRecipes(updated);
+        await saveRecipeToCloud(recipe);
+        setRecipes(prev => [...prev, recipe]);
       }, []);
 
       if (!loaded) {
